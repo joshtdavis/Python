@@ -49,9 +49,7 @@ class Pill_Scapper(object):
         try:
             engine = sqla.create_engine(databaseString)
             connection = engine.connect()
-            # need to do more reasearch regarding how to add to database
-            # attempting to use sqlachemy core with metadata
-            trans = connection.begin()
+            transaction = connection.begin()
             metadata = sqla.MetaData()
             #metadata.reflect(bind=engine)
             productTable = sqla.Table('Product',metadata,autoload=True,autoload_with=engine)
@@ -59,19 +57,20 @@ class Pill_Scapper(object):
             for product in self.__products:
                 insertProducts = productTable.insert().values(upcCode=product.get_UPC,SKU=product().get_SKU_vitanetonline(),name=product.get_name(),manufacturer='Solaray')
                 insertProductLocations = productlocations.insert().values(url=product.get_URL(),productID=product.get_UPC(),retailPrice=product.get_retail_price(),salePrice=product.get_sale_price(),specialGroupPrice=product.get_special_pricing())
-                engine.execute(insertProducts)
-                engine.execute(insertProductLocations)
-            '''statement = "Insert into Product(upcCode,SKU,name,manufacturer) Values "
-            for product in self.__products:
-                staement += "( '" + product.get_UPC() + "','" + product.get_SKU_vitanetonline() + "','" + product.get_name() + "','" + "Solaray' ),"
-            statement = statement[:-1] + ";"
-            result = connection.execute(statement)'''
-            trans.commit()
+                try:
+                    result_1 = connection.execute(insertProducts)
+                    result_2 = connection.execute(insertProductLocations)
+                    transaction.commit()
+                except Exception as e:
+                    transaction.rollback()
+                    connection.close()
+                    print(e)
+                    sucess = False
             connection.close()
             sucess = True
         except Exception as e:
-            trans.rollback()
-            connection.close()
+            if(not connection.closed):
+                connection.close()
             print(e)
             sucess = False
         return sucess
